@@ -22,11 +22,10 @@
  * @param {null}                  
  * @returns {Mat2}
  */
-var Mat2 = function()
-{
-    this.array = new Float32Array(4);
-    this.array.set([1.0, 0.0, 
-                    0.0, 1.0]);
+var Mat2 = function () {
+  this.array = new Float32Array(4);
+  this.array.set([1.0, 0.0,
+                  0.0, 1.0]);
 };
 
 /**
@@ -35,9 +34,8 @@ var Mat2 = function()
  * @param {Number} r - row
  * @returns {Number}
  */
-Mat2.prototype.get = function (c, r)
-{
-    return this.array[c*2+r];
+Mat2.prototype.get = function (c, r) {
+  return this.array[c * 2 + r];
 };
 
 /**
@@ -47,18 +45,16 @@ Mat2.prototype.get = function (c, r)
  * @param {Number} val - value
  * @returns {Number}
  */
-Mat2.prototype.set = function (c, r, val)
-{
-    this.array[c*2+r] = val;
+Mat2.prototype.set = function (c, r, val) {
+  this.array[c * 2 + r] = val;
 };
 
 /**
  * 'det' return the determinant of this Mat2
  * @returns {Number}
  */
-Mat2.prototype.det = function ()
-{
-    return this.array[0] * this.array[3] - this.array[1] * this.array[2];
+Mat2.prototype.det = function () {
+  return this.array[0] * this.array[3] - this.array[1] * this.array[2];
 };
 
 /**
@@ -66,24 +62,19 @@ Mat2.prototype.det = function ()
  * 
  * @param {null | Vec2 | [Number, Number]}
  */
-var Vec2 = function ()
-{
-    if (arguments.length === 0)
-    {// no arguements, so initial to 0's
-        this.array = new Float32Array(2);
-        this.array.set([0.0, 0.0]);
+var Vec2 = function () {
+  if (arguments.length === 0) {// no arguements, so initial to 0's
+    this.array = new Float32Array(2);
+    this.array.set([0.0, 0.0]);
+  }
+  else if (arguments.length === 1) {// 1 argument, ...
+    if (arguments[0] instanceof Vec2) {// argument is Vec2, so copy it
+      this.array = new Float32Array(arguments[0].array);
     }
-    else if (arguments.length === 1)
-    {// 1 argument, ...
-        if (arguments[0] instanceof Vec2)
-        {// argument is Vec2, so copy it
-            this.array = new Float32Array(arguments[0].array);
-        }
-        else if (arguments[0] instanceof Array)
-        {// argument is Array, so copy it
-            this.array = new Float32Array(arguments[0]);
-        }
+    else if (arguments[0] instanceof Array) {// argument is Array, so copy it
+      this.array = new Float32Array(arguments[0]);
     }
+  }
 };
 
 /**
@@ -92,18 +83,22 @@ var Vec2 = function ()
 var v = Vec2.prototype;
 Object.defineProperties(Vec2.prototype,
         {
-            "x": {get: function () {
-                    return this.array[0];
-                },
-                set: function (v) {
-                    this.array[0] = v;
-                }},
-            "y": {get: function () {
-                    return this.array[1];
-                },
-                set: function (v) {
-                    this.array[1] = v;
-                }}
+          "x": {
+            get: function () {
+              return this.array[0];
+            },
+            set: function (v) {
+              this.array[0] = v;
+            }
+          },
+          "y": {
+            get: function () {
+              return this.array[1];
+            },
+            set: function (v) {
+              this.array[1] = v;
+            }
+          }
         }
 );
 
@@ -112,20 +107,18 @@ Object.defineProperties(Vec2.prototype,
  * Add Vec2 'v' to this Vec2
  * @param {Vec2} v    
  */
-Vec2.prototype.add = function (v)
-{
-    this.array.set([this.array[0] + v.array[0], this.array[1] + v.array[1]]);
+Vec2.prototype.add = function (v) {
+  this.array.set([this.array[0] + v.array[0], this.array[1] + v.array[1]]);
 };
 
 /**
  * Subtract Vec2 'v' from this Vec2
  * @param {Vec2} v    
  */
-Vec2.prototype.sub = function (v)
-{
-    /*
-     * \todo needs to be implemented
-     */    
+Vec2.prototype.sub = function (v) {
+  /*
+   * \todo needs to be implemented
+   */
 };
 
 /**
@@ -135,10 +128,9 @@ Vec2.prototype.sub = function (v)
  * 
  * @param {Mat2} m    
  */
-Vec2.prototype.multiply = function (m)
-{
-     this.array.set([this.array[0]*m.array[0] + this.array[1]*m.array[2],
-                     this.array[0]*m.array[1] + this.array[1]*m.array[3] ]);
+Vec2.prototype.multiply = function (m) {
+  this.array.set([this.array[0] * m.array[0] + this.array[1] * m.array[2],
+                  this.array[0] * m.array[1] + this.array[1] * m.array[3]]);
 };
 
 /**
@@ -148,10 +140,9 @@ Vec2.prototype.multiply = function (m)
  * 
  * @param {Mat2} m
  */
-Vec2.prototype.rightMultiply = function (m)
-{
-     this.array.set([this.array[0]*m.array[0] + this.array[1]*m.array[1],
-                     this.array[0]*m.array[2] + this.array[1]*m.array[3] ]);
+Vec2.prototype.rightMultiply = function (m) {
+  this.array.set([this.array[0] * m.array[0] + this.array[1] * m.array[1],
+                  this.array[0] * m.array[2] + this.array[1] * m.array[3]]);
 };
 
 /**
@@ -159,24 +150,22 @@ Vec2.prototype.rightMultiply = function (m)
  * @param {Vec2} v    
  * @return {Number}
  */
-Vec2.prototype.dot = function (v)
-{
-    /*
-     * \todo needs to be implemented
-     */
-    return 0;
+Vec2.prototype.dot = function (v) {
+  /*
+   * \todo needs to be implemented
+   */
+  return 0;
 };
 
 /**
  * Return the magnitude (i.e. length) of of this Vec2 
  * @return {Number}
  */
-Vec2.prototype.mag = function ()
-{
-    /*
-     * \todo needs to be implemented
-     */
-    return 0;
+Vec2.prototype.mag = function () {
+  /*
+   * \todo needs to be implemented
+   */
+  return 0;
 };
 
 /**
@@ -189,12 +178,11 @@ Vec2.prototype.mag = function ()
  * @param {Vec2} p  - point to compute the barycentric coordinate of
  * @returns {[Number, Number, Number]} - array with barycentric coordinates of 'p'
  */
-function barycentric (p0, p1, p2, p)
-{
-    /*
-     * \todo needs to be implemented
-     */    
-    return [0,0,0];
+function barycentric(p0, p1, p2, p) {
+  /*
+   * \todo needs to be implemented
+   */
+  return [0, 0, 0];
 }
 
 /**
@@ -204,12 +192,11 @@ function barycentric (p0, p1, p2, p)
  * @param {Vec2} p  - point for which we are computing distance
  * @returns {undefined}
  */
-function pointLineDist(p0, p1, p)
-{
-     /*
-     * \todo needs to be implemented
-     */    
-    return 0;
+function pointLineDist(p0, p1, p) {
+  /*
+  * \todo needs to be implemented
+  */
+  return 0;
 }
 
 /**
@@ -218,29 +205,28 @@ function pointLineDist(p0, p1, p)
  * Students can optionally use this function for testing their code...
  * @returns {undefined}
  */
-function math2d_test()
-{
-    var M1 = new Mat2();
-    var v0 = new Vec2(), v1 = new Vec2([5.0,5.0]), v2, 
-            vx = new Vec2([1.0,0.0]),
-            vy = new Vec2([0.0,1.0]);
-    
-    var rad = 45 * Math.PI/180;
-    M1.set(0,0, Math.cos(rad)); M1.set(1,0, -Math.sin(rad)); 
-    M1.set(0,1, Math.sin(rad)); M1.set(1,1, Math.cos(rad));
-    
-       
-    v0.x = 1.0;
-    v0.y = 2.0;
-    v0.y += 1.0;
-    v2 = new Vec2(v0);
-    v2.add(v1);
-    
-    vx.multiply(M1);       
-    vy.multiply(M1);       
-    
-    console.log (JSON.stringify(M1));
-    console.log (JSON.stringify(v2));
-    console.log (v0.dot(v1));
-    console.log (v0.mag());
+function math2d_test() {
+  var M1 = new Mat2();
+  var v0 = new Vec2(), v1 = new Vec2([5.0, 5.0]), v2,
+          vx = new Vec2([1.0, 0.0]),
+          vy = new Vec2([0.0, 1.0]);
+
+  var rad = 45 * Math.PI / 180;
+  M1.set(0, 0, Math.cos(rad)); M1.set(1, 0, -Math.sin(rad));
+  M1.set(0, 1, Math.sin(rad)); M1.set(1, 1, Math.cos(rad));
+
+
+  v0.x = 1.0;
+  v0.y = 2.0;
+  v0.y += 1.0;
+  v2 = new Vec2(v0);
+  v2.add(v1);
+
+  vx.multiply(M1);
+  vy.multiply(M1);
+
+  console.log(JSON.stringify(M1));
+  console.log(JSON.stringify(v2));
+  console.log(v0.dot(v1));
+  console.log(v0.mag());
 }
