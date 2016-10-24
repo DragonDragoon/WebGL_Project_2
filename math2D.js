@@ -190,13 +190,31 @@ function barycentric(p0, p1, p2, p) {
  * @param {Vec2} p0 - first point on line
  * @param {Vec2} p1 - second point on line
  * @param {Vec2} p  - point for which we are computing distance
- * @returns {undefined}
+ * @returns {Number} - shortest distance from point P to line segment P1_P0
  */
 function pointLineDist(p0, p1, p) {
   /*
   * \todo needs to be implemented
   */
-  return 0;
+  // Set p to P to make it look more like the algorithm
+  var P = p;
+  // M (dot) (P - B) -> Scalar, for t0
+  var M_dot_P_minus_B = ((P.x - p0.x) * (p1.x - p0.x) + (P.y - p0.y) * (p1.y - p0.y));
+  // M (dot) M -> Scalar for t0
+  var M_dot_M = Math.pow((p0.x - p1.x), 2) + Math.pow((p0.y - p1.y), 2);
+  // t0 = (M (dot) (P - B)) / (M (dot) M) -> Scalar, from the algorithm
+  var t0 = M_dot_P_minus_B / M_dot_M;
+  // Limit t0 to min or max in direction of M (for line segment)
+  t0 = Math.max(0, Math.min(1, t0));
+  // B + t0 * M -> Vector
+  var B_plus_t0_times_M = {
+    "x": (p0.x + t0 * (p1.x - p0.x)),
+    "y": (p0.y + t0 * (p1.y - p0.y))
+  };
+  // D = |P - (B + t0 * M)| -> Scalar, from the algorithm
+  var D = Math.sqrt(Math.pow(P.x - B_plus_t0_times_M.x, 2) + Math.pow(P.y - B_plus_t0_times_M.y, 2));
+  // Return the distance
+  return D;
 }
 
 /**
