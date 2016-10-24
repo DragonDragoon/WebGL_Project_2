@@ -108,7 +108,8 @@ Object.defineProperties(Vec2.prototype,
  * @param {Vec2} v    
  */
 Vec2.prototype.add = function (v) {
-  this.array.set([this.array[0] + v.array[0], this.array[1] + v.array[1]]);
+  //this.array.set([this.array[0] + v.array[0], this.array[1] + v.array[1]]);
+  return new Vec2([this.array[0] + v.array[0], this.array[1] + v.array[1]]);
 };
 
 /**
@@ -119,6 +120,7 @@ Vec2.prototype.sub = function (v) {
   /*
    * \todo needs to be implemented
    */
+  return new Vec2([this.array[0] - v.array[0], this.array[1] - v.array[1]]);
 };
 
 /**
@@ -129,8 +131,9 @@ Vec2.prototype.sub = function (v) {
  * @param {Mat2} m    
  */
 Vec2.prototype.multiply = function (m) {
-  this.array.set([this.array[0] * m.array[0] + this.array[1] * m.array[2],
-                  this.array[0] * m.array[1] + this.array[1] * m.array[3]]);
+  //this.array.set([this.array[0] * m.array[0] + this.array[1] * m.array[2],
+  //                this.array[0] * m.array[1] + this.array[1] * m.array[3]]);
+  return new Vec2([this.array[0] * m.array[0] + this.array[1] * m.array[2], this.array[0] * m.array[1] + this.array[1] * m.array[3]]);
 };
 
 /**
@@ -141,8 +144,9 @@ Vec2.prototype.multiply = function (m) {
  * @param {Mat2} m
  */
 Vec2.prototype.rightMultiply = function (m) {
-  this.array.set([this.array[0] * m.array[0] + this.array[1] * m.array[1],
-                  this.array[0] * m.array[2] + this.array[1] * m.array[3]]);
+  //this.array.set([this.array[0] * m.array[0] + this.array[1] * m.array[1],
+  //                this.array[0] * m.array[2] + this.array[1] * m.array[3]]);
+  return new Vect2([this.array[0] * m.array[0] + this.array[1] * m.array[1], this.array[0] * m.array[2] + this.array[1] * m.array[3]]);
 };
 
 /**
@@ -154,7 +158,7 @@ Vec2.prototype.dot = function (v) {
   /*
    * \todo needs to be implemented
    */
-  return 0;
+  return this.array[0] * v.array[0] + this.array[1] * v.array[1];
 };
 
 /**
@@ -165,8 +169,16 @@ Vec2.prototype.mag = function () {
   /*
    * \todo needs to be implemented
    */
-  return 0;
+  return Math.sqrt(Math.pow(this.array[0], 2) + Math.pow(this.array[1], 2));
 };
+
+/**
+ * Return the vector scaled by a scalar
+ * @return {Number}
+ */
+Vec2.prototype.scale = function(s) {
+  return new Vec2([s * this.array[0], s * this.array[1]]);
+}
 
 /**
  * Compute the barycentric coordinate of point 'p' with respect to barycentric coordinate system
@@ -182,6 +194,18 @@ function barycentric(p0, p1, p2, p) {
   /*
    * \todo needs to be implemented
    */
+  /*
+  Vector v0 = b - a, v1 = c - a, v2 = p - a;
+  float d00 = Dot(v0, v0);
+  float d01 = Dot(v0, v1);
+  float d11 = Dot(v1, v1);
+  float d20 = Dot(v2, v0);
+  float d21 = Dot(v2, v1);
+  float denom = d00 * d11 - d01 * d01;
+  v = (d11 * d20 - d01 * d21) / denom;
+  w = (d00 * d21 - d01 * d20) / denom;
+  u = 1.0f - v - w;
+  */
   return [0, 0, 0];
 }
 
@@ -196,25 +220,20 @@ function pointLineDist(p0, p1, p) {
   /*
   * \todo needs to be implemented
   */
-  // Set p to P to make it look more like the algorithm
-  var P = p;
-  // M (dot) (P - B) -> Scalar, for t0
-  var M_dot_P_minus_B = ((P.x - p0.x) * (p1.x - p0.x) + (P.y - p0.y) * (p1.y - p0.y));
-  // M (dot) M -> Scalar for t0
-  var M_dot_M = Math.pow((p0.x - p1.x), 2) + Math.pow((p0.y - p1.y), 2);
-  // t0 = (M (dot) (P - B)) / (M (dot) M) -> Scalar, from the algorithm
-  var t0 = M_dot_P_minus_B / M_dot_M;
-  // Limit t0 to min or max in direction of M (for line segment)
+  // Hold Vec2 P, the point to find closest distance to
+  var P = new Vec2([p.x, p.y]);
+  // Hold Vec2 B, a point on the line segment
+  var B = new Vec2([p0.x, p0.y]);
+  // Hold Vec2 M, the direction of the line segment
+  var M = new Vec2([p1.x - p0.x, p1.y - p0.y]);
+  // Hold t0 = (M (dot) (P - B)) / (M (dot) M)
+  var t0 = M.dot(P.sub(B)) / M.dot(M);
+  // Set t0 to be within constraint [0, 1]
   t0 = Math.max(0, Math.min(1, t0));
-  // B + t0 * M -> Vector
-  var B_plus_t0_times_M = {
-    "x": (p0.x + t0 * (p1.x - p0.x)),
-    "y": (p0.y + t0 * (p1.y - p0.y))
-  };
-  // D = |P - (B + t0 * M)| -> Scalar, from the algorithm
-  var D = Math.sqrt(Math.pow(P.x - B_plus_t0_times_M.x, 2) + Math.pow(P.y - B_plus_t0_times_M.y, 2));
-  // Return the distance
-  return D;
+  // Hold D = P - (B + t0 * M)
+  var D = P.sub(B.add(M.scale(t0)));
+  // Return magnitude of D (distance)
+  return D.mag();
 }
 
 /**
