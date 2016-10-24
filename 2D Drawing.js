@@ -13,22 +13,22 @@
 
 // 'draw_mode' are names of the different user interaction modes.
 // \todo Student Note: others are probably needed...
-var draw_mode = { DrawLines: 0, DrawTriangles: 1, ClearScreen: 2, None: 3 };
+var draw_mode = { DrawLines: 0, DrawTriangles: 1, DrawQuads: 2, ClearScreen: 3, None: 4 };
 
 // 'curr_draw_mode' tracks the active user interaction mode
 var curr_draw_mode = draw_mode.DrawLines;
 
 // GL array buffers for points, lines, and triangles
 // \todo Student Note: need similar buffers for other draw modes...
-var vBuffer_Pnt, vBuffer_Line, vBuffer_Triangle;
+var vBuffer_Pnt, vBuffer_Line, vBuffer_Triangle, vBuffer_Quad;
 
 // Array's storing 2D vertex coordinates of points, lines, triangles, etc.
 // Each array element is an array of size 2 storing the x,y coordinate.
 // \todo Student Note: need similar arrays for other draw modes...
-var points = [], line_verts = [], tri_verts = [];
+var points = [], line_verts = [], tri_verts = [], quad_verts = [];
 
-// count number of points clicked for new line
-var num_pts = 0;
+// count number of points clicked for new objects
+var num_pts_line = 0, num_pts_triangle = 0, num_pts_quad = 0;
 
 // \todo need similar counters for other draw modes...
 
@@ -83,6 +83,13 @@ function main() {
     return -1;
   }
 
+  // GL buffer for quad mode
+  vBuffer_Quad = gl.createBuffer();
+  if (!vBuffer_Quad) {
+    console.log('Failed to create the buffer object');
+    return -1;
+  }
+
   var skeleton = true;
   if (skeleton) {
     document.getElementById("App_Title").innerHTML += "-Skeleton";
@@ -116,54 +123,54 @@ function main() {
    **  See https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
    **/
   // set event handlers buttons
-  document.getElementById("LineButton").addEventListener(
-          "click",
-          function () {
-            curr_draw_mode = draw_mode.DrawLines;
-          });
+  document.getElementById("LineButton").addEventListener("click", function () {
+    curr_draw_mode = draw_mode.DrawLines;
+  });
 
-  document.getElementById("TriangleButton").addEventListener(
-          "click",
-          function () {
-            curr_draw_mode = draw_mode.DrawTriangles;
-          });
+  document.getElementById("TriangleButton").addEventListener("click", function () {
+    curr_draw_mode = draw_mode.DrawTriangles;
+  });
 
-  document.getElementById("ClearScreenButton").addEventListener(
-          "click",
-          function () {
-            curr_draw_mode = draw_mode.ClearScreen;
-            // clear the vertex arrays
-            while (points.length > 0)
-              points.pop();
-            while (line_verts.length > 0)
-              line_verts.pop();
-            while (tri_verts.length > 0)
-              tri_verts.pop();
+  document.getElementById("QuadButton").addEventListener("click", function () {
+    curr_draw_mode = draw_mode.DrawQuads;
+  });
 
-            gl.clear(gl.COLOR_BUFFER_BIT);
+  document.getElementById("ClearScreenButton").addEventListener("click", function () {
+    curr_draw_mode = draw_mode.ClearScreen;
+    // clear the vertex arrays
+    while (points.length > 0) {
+      points.pop();
+    }
+    while (line_verts.length > 0) {
+      line_verts.pop();
+    }
+    while (tri_verts.length > 0) {
+      tri_verts.pop();
+    }
+    while (quad_verts.length > 0) {
+      quad_verts.pop();
+    }
 
-            curr_draw_mode = draw_mode.DrawLines;
-          });
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    curr_draw_mode = draw_mode.DrawLines;
+  });
 
   //\todo add event handlers for other buttons as required....            
 
   // set event handlers for color sliders
   /* \todo right now these just output to the console, code needs to be modified... */
-  document.getElementById("RedRange").addEventListener(
-          "input",
-          function () {
-            console.log("RedRange:" + document.getElementById("RedRange").value);
-          });
-  document.getElementById("GreenRange").addEventListener(
-          "input",
-          function () {
-            console.log("GreenRange:" + document.getElementById("GreenRange").value);
-          });
-  document.getElementById("BlueRange").addEventListener(
-          "input",
-          function () {
-            console.log("BlueRange:" + document.getElementById("BlueRange").value);
-          });
+  document.getElementById("RedRange").addEventListener("input", function () {
+    console.log("RedRange:" + document.getElementById("RedRange").value);
+  });
+
+  document.getElementById("GreenRange").addEventListener("input", function () {
+    console.log("GreenRange:" + document.getElementById("GreenRange").value);
+  });
+
+  document.getElementById("BlueRange").addEventListener("input", function () {
+    console.log("BlueRange:" + document.getElementById("BlueRange").value);
+  });
 
   // init sliders 
   // \todo this code needs to be modified ...
@@ -172,11 +179,9 @@ function main() {
   document.getElementById("BlueRange").value = 0;
 
   // Register function (event handler) to be called on a mouse press
-  canvas.addEventListener(
-          "mousedown",
-          function (ev) {
-            handleMouseDown(ev, gl, canvas, a_Position, u_FragColor);
-          });
+  canvas.addEventListener("mousedown", function (ev) {
+    handleMouseDown(ev, gl, canvas, a_Position, u_FragColor);
+  });
 }
 
 /*****
@@ -215,24 +220,42 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
   switch (curr_draw_mode) {
     case draw_mode.DrawLines:
       // in line drawing mode, so draw lines
-      if (num_pts < 1) {
+      if (num_pts_line < 1) {
         // gathering points of new line segment, so collect points
         line_verts.push([x, y]);
-        num_pts++;
+        num_pts_line++;
       } else {
         // got final point of new line, so update the primitive arrays
         line_verts.push([x, y]);
-        num_pts = 0;
+        num_pts_line = 0;
         points.length = 0;
       }
       break;
     case draw_mode.DrawTriangles:
-      if (num_pts < 2) {
+      // In triangle drawing mode
+      if (num_pts_triangle < 2) {
+        // Collect points until more than two
         tri_verts.push([x, y]);
-        num_pts++;
+        num_pts_triangle++;
       } else {
+        // Collect third point and update primitive arrays
         tri_verts.push([x, y]);
-        num_pts = 0;
+        // Reset points
+        num_pts_triangle = 0;
+        points.length = 0;
+      }
+      break;
+    case draw_mode.DrawQuads:
+      // In quad drawing mode
+      if (num_pts_quad < 3) {
+        // Collect points until more than three
+        quad_verts.push([x, y]);
+        num_pts_quad++;
+      } else {
+        // Collect fourth point and update primitive arrays
+        quad_verts.push([x, y]);
+        // Reset points
+        num_pts_quad = 0;
         points.length = 0;
       }
       break;
@@ -270,16 +293,33 @@ function drawObjects(gl, a_Position, u_FragColor) {
 
   // \todo draw triangles
   if (tri_verts.length) {
+    // Bind the triangle vertex buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer_Triangle);
+    // Set triangle vertex data into buffer
     gl.bufferData(gl.ARRAY_BUFFER, flatten(tri_verts), gl.STATIC_DRAW);
+    // Share location with shader
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
     gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    // Draw triangles
     gl.drawArrays(gl.TRIANGLES, 0, tri_verts.length);
   }
 
   // \todo draw quads
+  if (quad_verts.length > 3) { // Wait until four quad verts so it does not draw triangle on third vert
+    // Bind the quad vertex buffer data
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer_Quad);
+    // Set quad vertex data into buffer
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(quad_verts), gl.STATIC_DRAW);
+    // Share location with shader
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_Position);
+
+    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    // Draw triangles that make up quad
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, quad_verts.length);
+  }
 
   // draw primitive creation vertices 
   gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer_Pnt);
