@@ -32,7 +32,6 @@ var num_pts_line = 0, num_pts_triangle = 0, num_pts_quad = 0;
 
 // \todo need similar counters for other draw modes...
 
-
 /*****
  * 
  * MAIN
@@ -211,57 +210,97 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
   x = ((x - rect.left) - canvas.width / 2) / (canvas.width / 2);
   y = (canvas.height / 2 - (y - rect.top)) / (canvas.height / 2);
 
-  if (curr_draw_mode !== draw_mode.None) {
-    // add clicked point to 'points'
-    points.push([x, y]);
-  }
+  // If the left mouse button was clicked, draw stuff
+  if (ev.button == 0) {
+    if (curr_draw_mode !== draw_mode.None) {
+      // add clicked point to 'points'
+      points.push([x, y]);
+    }
 
-  // perform active drawing operation
-  switch (curr_draw_mode) {
-    case draw_mode.DrawLines:
-      // in line drawing mode, so draw lines
-      if (num_pts_line < 1) {
-        // gathering points of new line segment, so collect points
-        line_verts.push([x, y]);
-        num_pts_line++;
-      } else {
-        // got final point of new line, so update the primitive arrays
-        line_verts.push([x, y]);
-        num_pts_line = 0;
-        points.length = 0;
-      }
-      break;
-    case draw_mode.DrawTriangles:
-      // In triangle drawing mode
-      if (num_pts_triangle < 2) {
-        // Collect points until more than two
-        tri_verts.push([x, y]);
-        num_pts_triangle++;
-      } else {
-        // Collect third point and update primitive arrays
-        tri_verts.push([x, y]);
-        // Reset points
-        num_pts_triangle = 0;
-        points.length = 0;
-      }
-      break;
-    case draw_mode.DrawQuads:
-      // In quad drawing mode
-      if (num_pts_quad < 3) {
-        // Collect points until more than three
-        quad_verts.push([x, y]);
-        num_pts_quad++;
-      } else {
-        // Collect fourth point and update primitive arrays
-        quad_verts.push([x, y]);
-        // Reset points
-        num_pts_quad = 0;
-        points.length = 0;
-      }
-      break;
-  }
+    // perform active drawing operation
+    switch (curr_draw_mode) {
+      case draw_mode.DrawLines:
+        // in line drawing mode, so draw lines
+        if (num_pts_line < 1) {
+          // gathering points of new line segment, so collect points
+          line_verts.push([x, y]);
+          num_pts_line++;
+        } else {
+          // got final point of new line, so update the primitive arrays
+          line_verts.push([x, y]);
+          num_pts_line = 0;
+          points.length = 0;
+        }
+        break;
+      case draw_mode.DrawTriangles:
+        // In triangle drawing mode
+        if (num_pts_triangle < 2) {
+          // Collect points until more than two
+          tri_verts.push([x, y]);
+          num_pts_triangle++;
+        } else {
+          // Collect third point and update primitive arrays
+          tri_verts.push([x, y]);
+          // Reset points
+          num_pts_triangle = 0;
+          points.length = 0;
+        }
+        break;
+      case draw_mode.DrawQuads:
+        // In quad drawing mode
+        if (num_pts_quad < 3) {
+          // Collect points until more than three
+          quad_verts.push([x, y]);
+          num_pts_quad++;
+        } else {
+          // Collect fourth point and update primitive arrays
+          quad_verts.push([x, y]);
+          // Reset points
+          num_pts_quad = 0;
+          points.length = 0;
+        }
+        break;
+    }
 
-  drawObjects(gl, a_Position, u_FragColor);
+    drawObjects(gl, a_Position, u_FragColor);
+  // Else if the right mouse button was clicked, select stuff
+  } else if (ev.button == 2) {
+    // Hold clicked point
+    var p = {
+      "x": x,
+      "y": y
+    };
+
+    // Line segments
+    var closest_line_segment = -1; // Hold the iterator of the closest line segment
+    var closest_line_segment_distance = -1; // Hold the distance of the closest line segment
+    for (var i = 0; i < line_verts.length; i = i + 2) { // For each line segment (two points per line segment)
+      if (line_verts[i] !== null && line_verts[i + 1] !== null) { // If neither points in line_verts are null
+        // Hold the first point in the line segment
+        var p0 = {
+          "x": line_verts[i][0],
+          "y": line_verts[i][1]
+        };
+        // Hold the second point in the line segment
+        var p1 = {
+          "x": line_verts[i + 1][0],
+          "y": line_verts[i + 1][1]
+        };
+        // Find the shortest distance from clicked point to line segment (from math2D.js)
+        var distance = pointLineDist(p0, p1, p);
+        // If the distance is within a few pixels (assuming a distance of 0.02 is a few)
+        if (distance < 0.02 && (distance < closest_line_segment_distance || closest_line_segment_distance == -1)) {
+          // Save the line segment iterator and distance
+          closest_line_segment = i;
+          closest_line_segment_distance = distance;
+        }
+      }
+    }
+    if (closest_line_segment !== -1) { // If a line segment was selected within a few pixels
+      // Log to console
+      console.log("Selected: (" + line_verts[closest_line_segment] + ") -> (" + line_verts[closest_line_segment + 1] + ") with distance: " + closest_line_segment_distance);
+    }
+  }
 }
 
 /*
