@@ -20,7 +20,7 @@ var curr_draw_mode = draw_mode.DrawLines;
 
 // GL array buffers for points, lines, and triangles
 // \todo Student Note: need similar buffers for other draw modes...
-var vBuffer_Pnt, vBuffer_Line;
+var vBuffer_Pnt, vBuffer_Line, vBuffer_Triangle;
 
 // Array's storing 2D vertex coordinates of points, lines, triangles, etc.
 // Each array element is an array of size 2 storing the x,y coordinate.
@@ -28,7 +28,7 @@ var vBuffer_Pnt, vBuffer_Line;
 var points = [], line_verts = [], tri_verts = [];
 
 // count number of points clicked for new line
-var num_pts_line = 0;
+var num_pts = 0;
 
 // \todo need similar counters for other draw modes...
 
@@ -69,8 +69,16 @@ function main() {
     return -1;
   }
 
+  // GL buffer for line mode
   vBuffer_Line = gl.createBuffer();
   if (!vBuffer_Line) {
+    console.log('Failed to create the buffer object');
+    return -1;
+  }
+
+  // GL buffer for triangle mode
+  vBuffer_Triangle = gl.createBuffer();
+  if (!vBuffer_Triangle) {
     console.log('Failed to create the buffer object');
     return -1;
   }
@@ -207,15 +215,24 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
   switch (curr_draw_mode) {
     case draw_mode.DrawLines:
       // in line drawing mode, so draw lines
-      if (num_pts_line < 1) {
+      if (num_pts < 1) {
         // gathering points of new line segment, so collect points
         line_verts.push([x, y]);
-        num_pts_line++;
-      }
-      else {
+        num_pts++;
+      } else {
         // got final point of new line, so update the primitive arrays
         line_verts.push([x, y]);
-        num_pts_line = 0;
+        num_pts = 0;
+        points.length = 0;
+      }
+      break;
+    case draw_mode.DrawTriangles:
+      if (num_pts < 2) {
+        tri_verts.push([x, y]);
+        num_pts++;
+      } else {
+        tri_verts.push([x, y]);
+        num_pts = 0;
         points.length = 0;
       }
       break;
@@ -252,6 +269,15 @@ function drawObjects(gl, a_Position, u_FragColor) {
   }
 
   // \todo draw triangles
+  if (tri_verts.length) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer_Triangle);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(tri_verts), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_Position);
+
+    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    gl.drawArrays(gl.TRIANGLES, 0, tri_verts.length);
+  }
 
   // \todo draw quads
 
