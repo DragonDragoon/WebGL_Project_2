@@ -33,7 +33,10 @@ var num_pts_line = 0, num_pts_triangle = 0, num_pts_quad = 0;
 // \todo need similar counters for other draw modes...
 
 // Hold the currentrly selected type of object
-var currently_selected_type = "None";
+var currently_selected_objects = {};
+
+// Hold the draw type
+var drawing_type = "None";
 
 /*****
  * 
@@ -215,6 +218,15 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
 
   // If the left mouse button was clicked, draw stuff
   if (ev.button == 0) {
+    // If user was in selection mode
+    if (drawing_type == "Select") {
+      // Clear selection GL_POINTS
+      points.length = 0;
+    }
+
+    // Change drawing type to draw mode
+    drawing_type = "Draw";
+
     if (curr_draw_mode !== draw_mode.None) {
       // add clicked point to 'points'
       points.push([x, y]);
@@ -264,10 +276,11 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
         }
         break;
     }
-
-    drawObjects(gl, a_Position, u_FragColor);
   // Else if the right mouse button was clicked, select stuff
   } else if (ev.button == 2) {
+    // Change drawing type to selection mode
+    drawing_type = "Select";
+
     // Hold clicked point
     var p = {
       "x": x,
@@ -275,7 +288,10 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
     };
 
     // Reset currently selected type
-    currently_selected_type = "None";
+    currently_selected_objects = {};
+
+    // Reset selected points
+    points.length = 0;
 
     // Line segments
     var closest_line_segment = -1; // Hold the iterator of the closest line segment
@@ -306,12 +322,14 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
       // Log to console
       console.log("Selected line segment: (" + line_verts[closest_line_segment] + ") -> (" + line_verts[closest_line_segment + 1] + ") with distance: " + closest_line_segment_distance);
       currently_selected_type = "Line Segment";
+      points.push(line_verts[closest_line_segment]);
+      points.push(line_verts[closest_line_segment + 1]);
     }
 
     // Triangles
     var selected_triangle = -1; // Hold the iterator of the triangle selected
-    for (var i = 0; i < tri_verts.length; i = i + 3) { // For each line segment (two points per line segment)
-      if (typeof tri_verts[i] !== 'undefined' && typeof tri_verts[i + 1] !== 'undefined' && typeof tri_verts[i + 2] !== 'undefined') { // If no point in tri_verts are null
+    for (var i = 0; i < tri_verts.length; i = i + 3) { // For each triangle (three points in triangle)
+      if (typeof tri_verts[i] !== 'undefined' && typeof tri_verts[i + 1] !== 'undefined' && typeof tri_verts[i + 2] !== 'undefined') { // If no point in tri_verts are undefined
         // Hold the first point in the triangle
         var p0 = {
           "x": tri_verts[i][0],
@@ -331,17 +349,57 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
         var bary = barycentric(p0, p1, p2, p);
         // If clicked inside triangle
         if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
-          // Save the line segment iterator and distance
+          // Save the triangle iterator
           selected_triangle = i;
         }
       }
     }
     if (selected_triangle !== -1) { // If a triangle was selected
       // Log to console
-      console.log("Selected triangle: (" + tri_verts[selected_triangle] + ") -> (" + tri_verts[selected_triangle + 1] + ") -> (" + tri_verts[selected_triangle + 2] + ") with barycentric coordinates: (" + bary[0] + ", " + bary[1] + ", " + bary[2] + ")");
+      console.log("Selected triangle: (" + tri_verts[selected_triangle] + ") -> (" + tri_verts[selected_triangle + 1] + ") -> (" + tri_verts[selected_triangle + 2] + ") with barycentric coordinates: (" + bary + ")");
       currently_selected_type = "Triangle";
+      points.push(tri_verts[selected_triangle]);
+      points.push(tri_verts[selected_triangle + 1]);
+      points.push(tri_verts[selected_triangle + 2]);
+    }
+
+    // Quad
+    var selected_quad = -1; // Hold the iterator of the tri in the quad
+    for (var i = 0; i < quad_verts.length; i = i + 1) { // For each tri in the quad
+      if (typeof quad_verts[i] !== 'undefined' && typeof quad_verts[i + 1] !== 'undefined' && typeof quad_verts[i + 2] !== 'undefined') { // If no point in quad_verts are undefined
+        // Hold the first point of the tri in the quad
+        var p0 = {
+          "x": quad_verts[i][0],
+          "y": quad_verts[i][1]
+        };
+        // Hold the second point of the tri in the quad
+        var p1 = {
+          "x": quad_verts[i + 1][0],
+          "y": quad_verts[i + 1][1]
+        };
+        // Hold the third point of the tri in the quad
+        var p2 = {
+          "x": quad_verts[i + 2][0],
+          "y": quad_verts[i + 2][1]
+        };
+        // Find the barycentric coordinates of p from the tri in the quad (from math2D.js)
+        var bary = barycentric(p0, p1, p2, p);
+        // If clicked inside a tri in the quad
+        if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
+          // Save the triangle iterator in the quad
+          selected_quad = i;
+        }
+      }
+    }
+    if (selected_quad !== -1) { // If a tri in the quad was selected
+      // Log to console
+      console.log("Selected quad: selected tri in quad: (" + quad_verts[selected_quad] + ") -> (" + quad_verts[selected_quad + 1] + ") -> (" + quad_verts[selected_quad + 2] + ") with barycentric coordinates: (" + bary[0] + ", " + bary[1] + ", " + bary[2] + ")");
+      currently_selected_type = "Quad";
+      points = quad_verts.slice(0);
     }
   }
+
+  drawObjects(gl, a_Position, u_FragColor);
 }
 
 /*
@@ -407,7 +465,11 @@ function drawObjects(gl, a_Position, u_FragColor) {
   gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(a_Position);
 
-  gl.uniform4f(u_FragColor, 1.0, 1.0, 1.0, 1.0);
+  if (drawing_type == "Draw") {
+    gl.uniform4f(u_FragColor, 1.0, 1.0, 1.0, 1.0);
+  } else if (drawing_type == "Select") {
+    gl.uniform4f(u_FragColor, 0.0, 0.0, 1.0, 1.0);
+  }
   gl.drawArrays(gl.POINTS, 0, points.length);
 }
 
