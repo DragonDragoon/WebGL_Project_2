@@ -32,8 +32,13 @@ var num_pts_line = 0, num_pts_triangle = 0, num_pts_quad = 0;
 
 // \todo need similar counters for other draw modes...
 
-// Hold the currentrly selected type of object
-var currently_selected_objects = {};
+// Hold the currently selected type of object and the cycle iterator
+var currently_selected_objects = [];
+var current_object = 0;
+
+// Hold the previously selected x and y coordinates
+var prev_x = 0;
+var prev_y = 0;
 
 // Hold the draw type
 var drawing_type = "None";
@@ -281,121 +286,162 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
     // Change drawing type to selection mode
     drawing_type = "Select";
 
-    // Hold clicked point
-    var p = {
-      "x": x,
-      "y": y
-    };
-
-    // Reset currently selected type
-    currently_selected_objects = {};
-
     // Reset selected points
     points.length = 0;
 
-    // Line segments
-    var closest_line_segment = -1; // Hold the iterator of the closest line segment
-    var closest_line_segment_distance = -1; // Hold the distance of the closest line segment
-    for (var i = 0; i < line_verts.length; i = i + 2) { // For each line segment (two points per line segment)
-      if (typeof line_verts[i] !== 'undefined' && typeof line_verts[i + 1] !== 'undefined') { // If neither points in line_verts are null
-        // Hold the first point in the line segment
-        var p0 = {
-          "x": line_verts[i][0],
-          "y": line_verts[i][1]
-        };
-        // Hold the second point in the line segment
-        var p1 = {
-          "x": line_verts[i + 1][0],
-          "y": line_verts[i + 1][1]
-        };
-        // Find the shortest distance from clicked point to line segment (from math2D.js)
-        var distance = pointLineDist(p0, p1, p);
-        // If the distance is within a few pixels (assuming a distance of 0.02 is a few)
-        if (distance < 0.02 && (distance < closest_line_segment_distance || closest_line_segment_distance == -1)) {
-          // Save the line segment iterator and distance
-          closest_line_segment = i;
-          closest_line_segment_distance = distance;
-        }
-      }
-    }
-    if (closest_line_segment !== -1) { // If a line segment was selected within a few pixels
-      // Log to console
-      console.log("Selected line segment: (" + line_verts[closest_line_segment] + ") -> (" + line_verts[closest_line_segment + 1] + ") with distance: " + closest_line_segment_distance);
-      currently_selected_type = "Line Segment";
-      points.push(line_verts[closest_line_segment]);
-      points.push(line_verts[closest_line_segment + 1]);
-    }
+    if (prev_x !== x && prev_y !== y) {
+      // Hold clicked point
+      var p = {
+        "x": x,
+        "y": y
+      };
 
-    // Triangles
-    var selected_triangle = -1; // Hold the iterator of the triangle selected
-    for (var i = 0; i < tri_verts.length; i = i + 3) { // For each triangle (three points in triangle)
-      if (typeof tri_verts[i] !== 'undefined' && typeof tri_verts[i + 1] !== 'undefined' && typeof tri_verts[i + 2] !== 'undefined') { // If no point in tri_verts are undefined
-        // Hold the first point in the triangle
-        var p0 = {
-          "x": tri_verts[i][0],
-          "y": tri_verts[i][1]
-        };
-        // Hold the second point in the triangle
-        var p1 = {
-          "x": tri_verts[i + 1][0],
-          "y": tri_verts[i + 1][1]
-        };
-        // Hold the third point in the triangle
-        var p2 = {
-          "x": tri_verts[i + 2][0],
-          "y": tri_verts[i + 2][1]
-        };
-        // Find the barycentric coordinates of p from triangle (from math2D.js)
-        var bary = barycentric(p0, p1, p2, p);
-        // If clicked inside triangle
-        if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
-          // Save the triangle iterator
-          selected_triangle = i;
-        }
-      }
-    }
-    if (selected_triangle !== -1) { // If a triangle was selected
-      // Log to console
-      console.log("Selected triangle: (" + tri_verts[selected_triangle] + ") -> (" + tri_verts[selected_triangle + 1] + ") -> (" + tri_verts[selected_triangle + 2] + ") with barycentric coordinates: (" + bary + ")");
-      currently_selected_type = "Triangle";
-      points.push(tri_verts[selected_triangle]);
-      points.push(tri_verts[selected_triangle + 1]);
-      points.push(tri_verts[selected_triangle + 2]);
-    }
+      // Reset currently selected type and object cycle iterator
+      currently_selected_objects = [];
+      current_object = 0;
 
-    // Quad
-    var selected_quad = -1; // Hold the iterator of the tri in the quad
-    for (var i = 0; i < quad_verts.length; i = i + 1) { // For each tri in the quad
-      if (typeof quad_verts[i] !== 'undefined' && typeof quad_verts[i + 1] !== 'undefined' && typeof quad_verts[i + 2] !== 'undefined') { // If no point in quad_verts are undefined
-        // Hold the first point of the tri in the quad
-        var p0 = {
-          "x": quad_verts[i][0],
-          "y": quad_verts[i][1]
-        };
-        // Hold the second point of the tri in the quad
-        var p1 = {
-          "x": quad_verts[i + 1][0],
-          "y": quad_verts[i + 1][1]
-        };
-        // Hold the third point of the tri in the quad
-        var p2 = {
-          "x": quad_verts[i + 2][0],
-          "y": quad_verts[i + 2][1]
-        };
-        // Find the barycentric coordinates of p from the tri in the quad (from math2D.js)
-        var bary = barycentric(p0, p1, p2, p);
-        // If clicked inside a tri in the quad
-        if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
-          // Save the triangle iterator in the quad
-          selected_quad = i;
+      // Line segments
+      var closest_line_segment = -1; // Hold the iterator of the closest line segment
+      var closest_line_segment_distance = -1; // Hold the distance of the closest line segment
+      for (var i = 0; i < line_verts.length; i = i + 2) { // For each line segment (two points per line segment)
+        if (typeof line_verts[i] !== 'undefined' && typeof line_verts[i + 1] !== 'undefined') { // If neither points in line_verts are null
+          // Hold the first point in the line segment
+          var p0 = {
+            "x": line_verts[i][0],
+            "y": line_verts[i][1]
+          };
+          // Hold the second point in the line segment
+          var p1 = {
+            "x": line_verts[i + 1][0],
+            "y": line_verts[i + 1][1]
+          };
+          // Find the shortest distance from clicked point to line segment (from math2D.js)
+          var distance = pointLineDist(p0, p1, p);
+          // If the distance is within a few pixels (assuming a distance of 0.02 is a few)
+          if (distance < 0.02 && (distance < closest_line_segment_distance || closest_line_segment_distance == -1)) {
+            // Save the line segment iterator and distance
+            closest_line_segment = i;
+            closest_line_segment_distance = distance;
+
+            // Push object to currently selected objects
+            currently_selected_objects.push(["Line Segment", closest_line_segment, closest_line_segment_distance]);
+          }
         }
       }
+
+      // Triangles
+      var selected_triangle = -1; // Hold the iterator of the triangle selected
+      for (var i = 0; i < tri_verts.length; i = i + 3) { // For each triangle (three points in triangle)
+        if (typeof tri_verts[i] !== 'undefined' && typeof tri_verts[i + 1] !== 'undefined' && typeof tri_verts[i + 2] !== 'undefined') { // If no point in tri_verts are undefined
+          // Hold the first point in the triangle
+          var p0 = {
+            "x": tri_verts[i][0],
+            "y": tri_verts[i][1]
+          };
+          // Hold the second point in the triangle
+          var p1 = {
+            "x": tri_verts[i + 1][0],
+            "y": tri_verts[i + 1][1]
+          };
+          // Hold the third point in the triangle
+          var p2 = {
+            "x": tri_verts[i + 2][0],
+            "y": tri_verts[i + 2][1]
+          };
+          // Find the barycentric coordinates of p from triangle (from math2D.js)
+          var bary = barycentric(p0, p1, p2, p);
+          // If clicked inside triangle
+          if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
+            // Save the triangle iterator
+            selected_triangle = i;
+            
+            // Push object to currently selected object
+            currently_selected_objects.push(["Triangle", selected_triangle, bary]);
+          }
+        }
+      }
+
+      // Quad
+      var selected_quad = -1; // Hold the iterator of the tri in the quad
+      for (var i = 0; i < quad_verts.length; i = i + 1) { // For each tri in the quad
+        if (typeof quad_verts[i] !== 'undefined' && typeof quad_verts[i + 1] !== 'undefined' && typeof quad_verts[i + 2] !== 'undefined') { // If no point in quad_verts are undefined
+          // Hold the first point of the tri in the quad
+          var p0 = {
+            "x": quad_verts[i][0],
+            "y": quad_verts[i][1]
+          };
+          // Hold the second point of the tri in the quad
+          var p1 = {
+            "x": quad_verts[i + 1][0],
+            "y": quad_verts[i + 1][1]
+          };
+          // Hold the third point of the tri in the quad
+          var p2 = {
+            "x": quad_verts[i + 2][0],
+            "y": quad_verts[i + 2][1]
+          };
+          // Find the barycentric coordinates of p from the tri in the quad (from math2D.js)
+          var bary = barycentric(p0, p1, p2, p);
+          // If clicked inside a tri in the quad
+          if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
+            // Save the triangle iterator in the quad
+            selected_quad = i;
+
+            // Push object to currently selected objects
+            currently_selected_objects.push(["Quad", selected_quad, bary]);
+          }
+        }
+      }
+
+      // Set previous x and y for checking if we should select new object
+      prev_x = x;
+      prev_y = y;
+    } else {
+      // If the next selected object is not undefined
+      if (typeof currently_selected_objects[current_object + 1] !== 'undefined') {
+        // Cycle to next current object
+        current_object++;
+      } else {
+        // Cycle to first selected object
+        current_object = 0;
+      }
     }
-    if (selected_quad !== -1) { // If a tri in the quad was selected
-      // Log to console
-      console.log("Selected quad: selected tri in quad: (" + quad_verts[selected_quad] + ") -> (" + quad_verts[selected_quad + 1] + ") -> (" + quad_verts[selected_quad + 2] + ") with barycentric coordinates: (" + bary[0] + ", " + bary[1] + ", " + bary[2] + ")");
-      currently_selected_type = "Quad";
-      points = quad_verts.slice(0);
+    
+    // If there are any currently selected objects
+    if (currently_selected_objects.length) {
+      // Hold the current cycled object
+      var obj = currently_selected_objects[current_object];
+
+      // Switch depending on type of object selected
+      switch (obj[0]) {
+        case "Line Segment":
+          // Log to console
+          console.log("Selected line segment: (" + line_verts[obj[1]] + ") -> (" + line_verts[obj[1] + 1] + ") with distance: " + obj[2]);
+          // Set currently selected type
+          currently_selected_type = "Line Segment";
+          // Push verts to point for display
+          points.push(line_verts[obj[1]]);
+          points.push(line_verts[obj[1] + 1]);
+          break;
+        case "Triangle":
+          // Log to console
+          console.log("Selected triangle: (" + tri_verts[obj[1]] + ") -> (" + tri_verts[obj[1] + 1] + ") -> (" + tri_verts[obj[1] + 2] + ") with barycentric coordinates: (" + obj[2] + ")");
+          // Set currently selected type
+          currently_selected_type = "Triangle";
+          // Push verts to points for display
+          points.push(tri_verts[obj[1]]);
+          points.push(tri_verts[obj[1] + 1]);
+          points.push(tri_verts[obj[1] + 2]);
+          break;
+        case "Quad":
+          // Log to console
+          console.log("Selected quad: selected tri in quad: (" + quad_verts[obj[1]] + ") -> (" + quad_verts[obj[1] + 1] + ") -> (" + quad_verts[obj[1] + 2] + ") with barycentric coordinates: (" + obj[2] + ")");
+          // Set currently selected type
+          currently_selected_type = "Quad";
+          // Push verts to points for display
+          points = quad_verts.slice(0);
+          break;
+      }
     }
   }
 
