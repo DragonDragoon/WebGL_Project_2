@@ -20,7 +20,7 @@ var curr_draw_mode = draw_mode.DrawLines;
 
 // GL array buffers for points, lines, and triangles
 // \todo Student Note: need similar buffers for other draw modes...
-var vBuffer_Pnt, vBuffer_Line, vBuffer_Triangle, vBuffer_Quad;
+var vBuffer_Pnt, vBuffer_Line, vBuffer_Triangle, vBuffer_Quad, quad_index_buffer;
 
 // Array's storing 2D vertex coordinates of points, lines, triangles, etc.
 // Each array element is an array of size 2 storing the x,y coordinate.
@@ -47,6 +47,9 @@ var drawing_type = "None";
 var line_color = new Float32Array([0.0, 0.0, 1.0, 1.0]);
 var tri_color = new Float32Array([0.0, 1.0, 0.0, 1.0]);
 var quad_color = new Float32Array([1.0, 0.0, 0.0, 1.0]);
+
+// Hold the indexes of the vertices for quads (to create separate quads)
+var quad_indices = [];
 
 /*****
  * 
@@ -94,6 +97,13 @@ function main() {
   // GL buffer for triangle mode
   vBuffer_Triangle = gl.createBuffer();
   if (!vBuffer_Triangle) {
+    console.log('Failed to create the buffer object');
+    return -1;
+  }
+
+  // Create an empty buffer object to store Index buffer
+  quad_index_buffer = gl.createBuffer();
+  if (!quad_index_buffer) {
     console.log('Failed to create the buffer object');
     return -1;
   }
@@ -332,6 +342,10 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           // Reset points
           num_pts_quad = 0;
           points.length = 0;
+
+          var num = 4 * (quad_verts.length / 4 - 1);
+          // quad_indices.push(3 + num, 2 + num, 1 + num, 3 + num, 1 + num, 0 + num); // For a different kind of index (test)
+          quad_indices.push(0 + num, 1 + num, 2 + num, 1 + num, 2 + num, 3 + num);
         }
         break;
     }
@@ -417,32 +431,34 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
 
       // Quad (Missed Commit)
       var selected_quad = -1; // Hold the iterator of the tri in the quad
-      for (var i = 0; i < quad_verts.length; i = i + 1) { // For each tri in the quad
-        if (typeof quad_verts[i] !== 'undefined' && typeof quad_verts[i + 1] !== 'undefined' && typeof quad_verts[i + 2] !== 'undefined') { // If no point in quad_verts are undefined
-          // Hold the first point of the tri in the quad
-          var p0 = {
-            "x": quad_verts[i][0],
-            "y": quad_verts[i][1]
-          };
-          // Hold the second point of the tri in the quad
-          var p1 = {
-            "x": quad_verts[i + 1][0],
-            "y": quad_verts[i + 1][1]
-          };
-          // Hold the third point of the tri in the quad
-          var p2 = {
-            "x": quad_verts[i + 2][0],
-            "y": quad_verts[i + 2][1]
-          };
-          // Find the barycentric coordinates of p from the tri in the quad (from math2D.js)
-          var bary = barycentric(p0, p1, p2, p);
-          // If clicked inside a tri in the quad
-          if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
-            // Save the triangle iterator in the quad
-            selected_quad = i;
+      for (var j = 0; j < quad_verts.length; j = j + 4) {
+        for (var i = 0; i < 2; i = i + 1) { // For each tri in the quad
+          if (typeof quad_verts[j + i] !== 'undefined' && typeof quad_verts[j + i + 1] !== 'undefined' && typeof quad_verts[j + i + 2] !== 'undefined') { // If no point in quad_verts are undefined
+            // Hold the first point of the tri in the quad
+            var p0 = {
+              "x": quad_verts[j + i][0],
+              "y": quad_verts[j + i][1]
+            };
+            // Hold the second point of the tri in the quad
+            var p1 = {
+              "x": quad_verts[j + i + 1][0],
+              "y": quad_verts[j + i + 1][1]
+            };
+            // Hold the third point of the tri in the quad
+            var p2 = {
+              "x": quad_verts[j + i + 2][0],
+              "y": quad_verts[j + i + 2][1]
+            };
+            // Find the barycentric coordinates of p from the tri in the quad (from math2D.js)
+            var bary = barycentric(p0, p1, p2, p);
+            // If clicked inside a tri in the quad
+            if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
+              // Save the triangle iterator in the quad
+              selected_quad = j;
 
-            // Push object to currently selected objects
-            currently_selected_objects.push(["Quad", selected_quad, bary]);
+              // Push object to currently selected objects
+              currently_selected_objects.push(["Quad", selected_quad, bary]);
+            }
           }
         }
       }
@@ -503,7 +519,10 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           // Set currently selected type
           currently_selected_type = "Quad";
           // Push verts to points for display
-          points = quad_verts.slice(0);
+          points.push(quad_verts[obj[1]]);
+          points.push(quad_verts[obj[1] + 1]);
+          points.push(quad_verts[obj[1] + 2]);
+          points.push(quad_verts[obj[1] + 3]);
 
           // Update range elements
           document.getElementById("RedRange").value = quad_color[0];
@@ -537,7 +556,16 @@ function delete_selection(gl, a_Position, u_FragColor) {
         break;
       case "Quad":
         // Remove all verts from quad array
-        quad_verts.length = 0;
+        quad_verts.splice(obj[1], 4);
+        
+        // Rebuild indexes
+        quad_indices.length = 0;
+        for (var i = 0; i < quad_verts.length; i = i + 4) {
+          var num = 4 * (i / 4); // Get quad iteration num
+          // quad_indices.push(3 + num, 2 + num, 1 + num, 3 + num, 1 + num, 0 + num); // For a different kind of index (test)
+          // Push indices
+          quad_indices.push(0 + num, 1 + num, 2 + num, 1 + num, 2 + num, 3 + num);
+        }
         break;
     }
 
@@ -600,9 +628,16 @@ function drawObjects(gl, a_Position, u_FragColor) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
+    // Bind appropriate array buffer to it
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quad_index_buffer);
+
+    // Pass the vertex data to the buffer
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(quad_indices), gl.STATIC_DRAW);
+
     gl.uniform4fv(u_FragColor, quad_color);
     // Draw triangles that make up quad
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, quad_verts.length);
+    //gl.drawArrays(gl.TRIANGLES, 0, quad_verts.length);
+    gl.drawElements(gl.TRIANGLES, quad_indices.length, gl.UNSIGNED_SHORT, 0);
   }
 
   // draw primitive creation vertices 
@@ -611,6 +646,7 @@ function drawObjects(gl, a_Position, u_FragColor) {
   gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(a_Position);
 
+  // Change color of GL_POINTS depending on drawing type
   if (drawing_type == "Draw") {
     gl.uniform4f(u_FragColor, 1.0, 1.0, 1.0, 1.0);
   } else if (drawing_type == "Select") {
