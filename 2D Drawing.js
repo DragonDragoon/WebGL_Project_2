@@ -361,7 +361,7 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
         }
       }
 
-      // Quad
+      // Quad (Missed Commit)
       var selected_quad = -1; // Hold the iterator of the tri in the quad
       for (var i = 0; i < quad_verts.length; i = i + 1) { // For each tri in the quad
         if (typeof quad_verts[i] !== 'undefined' && typeof quad_verts[i + 1] !== 'undefined' && typeof quad_verts[i + 2] !== 'undefined') { // If no point in quad_verts are undefined
