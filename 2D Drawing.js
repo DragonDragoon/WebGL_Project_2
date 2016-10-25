@@ -43,6 +43,11 @@ var prev_y = 0;
 // Hold the draw type
 var drawing_type = "None";
 
+// Hold the default color types
+var line_color = new Float32Array([0.0, 0.0, 1.0, 1.0]);
+var tri_color = new Float32Array([0.0, 1.0, 0.0, 1.0]);
+var quad_color = new Float32Array([1.0, 0.0, 0.0, 1.0]);
+
 /*****
  * 
  * MAIN
@@ -175,22 +180,67 @@ function main() {
   // set event handlers for color sliders
   /* \todo right now these just output to the console, code needs to be modified... */
   document.getElementById("RedRange").addEventListener("input", function () {
-    console.log("RedRange:" + document.getElementById("RedRange").value);
+    //console.log("RedRange:" + document.getElementById("RedRange").value);
+    // Switch based on object type
+    switch (currently_selected_objects[current_object][0]) {
+      case "Line Segment":
+        line_color[0] = document.getElementById("RedRange").value;
+        break;
+      case "Triangle":
+        tri_color[0] = document.getElementById("RedRange").value;
+        break;
+      case "Quad":
+        quad_color[0] = document.getElementById("RedRange").value;
+        break;
+    }
+
+    // Update objects on canvas for color
+    drawObjects(gl, a_Position, u_FragColor);
   });
 
   document.getElementById("GreenRange").addEventListener("input", function () {
-    console.log("GreenRange:" + document.getElementById("GreenRange").value);
+    //console.log("GreenRange:" + document.getElementById("GreenRange").value);
+    // Switch based on object type
+    switch (currently_selected_objects[current_object][0]) {
+      case "Line Segment":
+        line_color[1] = document.getElementById("GreenRange").value;
+        break;
+      case "Triangle":
+        tri_color[1] = document.getElementById("GreenRange").value;
+        break;
+      case "Quad":
+        quad_color[1] = document.getElementById("GreenRange").value;
+        break;
+    }
+
+    // Update objects on canvas for color
+    drawObjects(gl, a_Position, u_FragColor);
   });
 
   document.getElementById("BlueRange").addEventListener("input", function () {
-    console.log("BlueRange:" + document.getElementById("BlueRange").value);
+    //console.log("BlueRange:" + document.getElementById("BlueRange").value);
+    // Switch based on object type
+    switch (currently_selected_objects[current_object][0]) {
+      case "Line Segment":
+        line_color[2] = document.getElementById("BlueRange").value;
+        break;
+      case "Triangle":
+        tri_color[2] = document.getElementById("BlueRange").value;
+        break;
+      case "Quad":
+        quad_color[2] = document.getElementById("BlueRange").value;
+        break;
+    }
+
+    // Update object on canvas for color
+    drawObjects(gl, a_Position, u_FragColor);
   });
 
   // init sliders 
   // \todo this code needs to be modified ...
-  document.getElementById("RedRange").value = 0;
-  document.getElementById("GreenRange").value = 100;
-  document.getElementById("BlueRange").value = 0;
+  document.getElementById("RedRange").value = 0.0;
+  document.getElementById("GreenRange").value = 0.0;
+  document.getElementById("BlueRange").value = 0.0;
 
   // Register function (event handler) to be called on a mouse press
   canvas.addEventListener("mousedown", function (ev) {
@@ -426,6 +476,11 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           // Push verts to point for display
           points.push(line_verts[obj[1]]);
           points.push(line_verts[obj[1] + 1]);
+
+          // Update range elements
+          document.getElementById("RedRange").value = line_color[0];
+          document.getElementById("GreenRange").value = line_color[1];
+          document.getElementById("BlueRange").value = line_color[2];
           break;
         case "Triangle":
           // Log to console
@@ -436,6 +491,11 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           points.push(tri_verts[obj[1]]);
           points.push(tri_verts[obj[1] + 1]);
           points.push(tri_verts[obj[1] + 2]);
+
+          // Update range elements
+          document.getElementById("RedRange").value = tri_color[0];
+          document.getElementById("GreenRange").value = tri_color[1];
+          document.getElementById("BlueRange").value = tri_color[2];
           break;
         case "Quad":
           // Log to console
@@ -444,6 +504,11 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           currently_selected_type = "Quad";
           // Push verts to points for display
           points = quad_verts.slice(0);
+
+          // Update range elements
+          document.getElementById("RedRange").value = quad_color[0];
+          document.getElementById("GreenRange").value = quad_color[1];
+          document.getElementById("BlueRange").value = quad_color[2];
           break;
       }
     }
@@ -505,7 +570,7 @@ function drawObjects(gl, a_Position, u_FragColor) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    gl.uniform4fv(u_FragColor, line_color);
     // draw the lines
     gl.drawArrays(gl.LINES, 0, line_verts.length);
   }
@@ -520,7 +585,7 @@ function drawObjects(gl, a_Position, u_FragColor) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    gl.uniform4fv(u_FragColor, tri_color);
     // Draw triangles
     gl.drawArrays(gl.TRIANGLES, 0, tri_verts.length);
   }
@@ -535,7 +600,7 @@ function drawObjects(gl, a_Position, u_FragColor) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    gl.uniform4fv(u_FragColor, quad_color);
     // Draw triangles that make up quad
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, quad_verts.length);
   }
@@ -549,7 +614,7 @@ function drawObjects(gl, a_Position, u_FragColor) {
   if (drawing_type == "Draw") {
     gl.uniform4f(u_FragColor, 1.0, 1.0, 1.0, 1.0);
   } else if (drawing_type == "Select") {
-    gl.uniform4f(u_FragColor, 0.0, 0.0, 1.0, 1.0);
+    gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
   }
   gl.drawArrays(gl.POINTS, 0, points.length);
 }
