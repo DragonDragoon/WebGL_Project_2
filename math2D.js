@@ -194,19 +194,27 @@ function barycentric(p0, p1, p2, p) {
   /*
    * \todo needs to be implemented
    */
-  /*
-  Vector v0 = b - a, v1 = c - a, v2 = p - a;
-  float d00 = Dot(v0, v0);
-  float d01 = Dot(v0, v1);
-  float d11 = Dot(v1, v1);
-  float d20 = Dot(v2, v0);
-  float d21 = Dot(v2, v1);
-  float denom = d00 * d11 - d01 * d01;
-  v = (d11 * d20 - d01 * d21) / denom;
-  w = (d00 * d21 - d01 * d20) / denom;
-  u = 1.0f - v - w;
-  */
-  return [0, 0, 0];
+  // Hold vector p1 - p0
+  var v0 = new Vec2([p1.x - p0.x, p1.y - p0.y]);
+  // Hold vector p2 - p0
+  var v1 = new Vec2([p2.x - p0.x, p2.y - p0.y]);
+  // Hold vector p - p0
+  var v2 = new Vec2([p.x - p0.x, p.y - p0.y]);
+  // Dot products to set up u, v, and w
+  var v0_dot_v0 = v0.dot(v0);
+  var v0_dot_v1 = v0.dot(v1);
+  var v1_dot_v1 = v1.dot(v1);
+  var v2_dot_v0 = v2.dot(v0);
+  var v2_dot_v1 = v2.dot(v1);
+  // b_coord to set up u, v, and w
+  var b_coord = v0_dot_v0 * v1_dot_v1 - v0_dot_v1 * v0_dot_v1;
+  // alpha = ((v1 (dot) v1) * (v2 (dot) v0) - (v1 (dot) v0) * (v2 (dot) v1)) / ((v0 (dot) v0) * (v1 (dot) v1) - (v0 (dot) v1) * (v1 (dot) v0))
+  var a = (v1_dot_v1 * v2_dot_v0 - v0_dot_v1 * v2_dot_v1) / b_coord;
+  // beta = ((v0 (dot) v0) * (v2 (dot) v1) - (v0 (dot) v1) * (v2 (dot) v0)) / ((v0 (dot) v0) * (v1 (dot) v1) - (v0 (dot) v1) * (v1 (dot) v0))
+  var b = (v0_dot_v0 * v2_dot_v1 - v0_dot_v1 * v2_dot_v0) / b_coord;
+  // gamma
+  var g = 1.0 - a - b;
+  return [a, b, g];
 }
 
 /**

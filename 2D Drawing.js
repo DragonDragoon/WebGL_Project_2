@@ -32,6 +32,9 @@ var num_pts_line = 0, num_pts_triangle = 0, num_pts_quad = 0;
 
 // \todo need similar counters for other draw modes...
 
+// Hold the currentrly selected type of object
+var currently_selected_type = "None";
+
 /*****
  * 
  * MAIN
@@ -271,11 +274,14 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
       "y": y
     };
 
+    // Reset currently selected type
+    currently_selected_type = "None";
+
     // Line segments
     var closest_line_segment = -1; // Hold the iterator of the closest line segment
     var closest_line_segment_distance = -1; // Hold the distance of the closest line segment
     for (var i = 0; i < line_verts.length; i = i + 2) { // For each line segment (two points per line segment)
-      if (line_verts[i] !== null && line_verts[i + 1] !== null) { // If neither points in line_verts are null
+      if (typeof line_verts[i] !== 'undefined' && typeof line_verts[i + 1] !== 'undefined') { // If neither points in line_verts are null
         // Hold the first point in the line segment
         var p0 = {
           "x": line_verts[i][0],
@@ -298,7 +304,42 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
     }
     if (closest_line_segment !== -1) { // If a line segment was selected within a few pixels
       // Log to console
-      console.log("Selected: (" + line_verts[closest_line_segment] + ") -> (" + line_verts[closest_line_segment + 1] + ") with distance: " + closest_line_segment_distance);
+      console.log("Selected line segment: (" + line_verts[closest_line_segment] + ") -> (" + line_verts[closest_line_segment + 1] + ") with distance: " + closest_line_segment_distance);
+      currently_selected_type = "Line Segment";
+    }
+
+    // Triangles
+    var selected_triangle = -1; // Hold the iterator of the triangle selected
+    for (var i = 0; i < tri_verts.length; i = i + 3) { // For each line segment (two points per line segment)
+      if (typeof tri_verts[i] !== 'undefined' && typeof tri_verts[i + 1] !== 'undefined' && typeof tri_verts[i + 2] !== 'undefined') { // If no point in tri_verts are null
+        // Hold the first point in the triangle
+        var p0 = {
+          "x": tri_verts[i][0],
+          "y": tri_verts[i][1]
+        };
+        // Hold the second point in the triangle
+        var p1 = {
+          "x": tri_verts[i + 1][0],
+          "y": tri_verts[i + 1][1]
+        };
+        // Hold the third point in the triangle
+        var p2 = {
+          "x": tri_verts[i + 2][0],
+          "y": tri_verts[i + 2][1]
+        };
+        // Find the barycentric coordinates of p from triangle (from math2D.js)
+        var bary = barycentric(p0, p1, p2, p);
+        // If clicked inside triangle
+        if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
+          // Save the line segment iterator and distance
+          selected_triangle = i;
+        }
+      }
+    }
+    if (selected_triangle !== -1) { // If a triangle was selected
+      // Log to console
+      console.log("Selected triangle: (" + tri_verts[selected_triangle] + ") -> (" + tri_verts[selected_triangle + 1] + ") -> (" + tri_verts[selected_triangle + 2] + ") with barycentric coordinates: (" + bary[0] + ", " + bary[1] + ", " + bary[2] + ")");
+      currently_selected_type = "Triangle";
     }
   }
 }
