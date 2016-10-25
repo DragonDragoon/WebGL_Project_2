@@ -145,6 +145,10 @@ function main() {
     curr_draw_mode = draw_mode.DrawQuads;
   });
 
+  document.getElementById("DeleteButton").addEventListener("click", function () {
+    delete_selection(gl, a_Position, u_FragColor);
+  });
+
   document.getElementById("ClearScreenButton").addEventListener("click", function () {
     curr_draw_mode = draw_mode.ClearScreen;
     // clear the vertex arrays
@@ -446,6 +450,37 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
   }
 
   drawObjects(gl, a_Position, u_FragColor);
+}
+
+/**
+ * Delete selected object
+ */
+function delete_selection(gl, a_Position, u_FragColor) {
+  if (currently_selected_objects.length) {
+    // Hold the current cycled object
+    var obj = currently_selected_objects[current_object];
+
+    // Switch depending on type of object selected
+    switch (obj[0]) {
+      case "Line Segment":
+        // Splice elements from line verts array
+        line_verts.splice(obj[1], 2);
+        break;
+      case "Triangle":
+        // Splice elements from triangle verts array
+        tri_verts.splice(obj[1], 3);
+        break;
+      case "Quad":
+        // Remove all verts from quad array
+        quad_verts.length = 0;
+        break;
+    }
+
+    // Reset GL_POINTS
+    points.length = 0;
+
+    drawObjects(gl, a_Position, u_FragColor);
+  }
 }
 
 /*
