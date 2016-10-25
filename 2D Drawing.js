@@ -20,7 +20,7 @@ var curr_draw_mode = draw_mode.DrawLines;
 
 // GL array buffers for points, lines, and triangles
 // \todo Student Note: need similar buffers for other draw modes...
-var vBuffer_Pnt, vBuffer_Line, vBuffer_Triangle, vBuffer_Quad;
+var vBuffer_Pnt, vBuffer_Line, vBuffer_Triangle, vBuffer_Quad, quad_index_buffer;
 
 // Array's storing 2D vertex coordinates of points, lines, triangles, etc.
 // Each array element is an array of size 2 storing the x,y coordinate.
@@ -42,6 +42,14 @@ var prev_y = 0;
 
 // Hold the draw type
 var drawing_type = "None";
+
+// Hold the default color types
+var line_color = new Float32Array([0.0, 0.0, 1.0, 1.0]);
+var tri_color = new Float32Array([0.0, 1.0, 0.0, 1.0]);
+var quad_color = new Float32Array([1.0, 0.0, 0.0, 1.0]);
+
+// Hold the indexes of the vertices for quads (to create separate quads)
+var quad_indices = [];
 
 /*****
  * 
@@ -89,6 +97,13 @@ function main() {
   // GL buffer for triangle mode
   vBuffer_Triangle = gl.createBuffer();
   if (!vBuffer_Triangle) {
+    console.log('Failed to create the buffer object');
+    return -1;
+  }
+
+  // Create an empty buffer object to store Index buffer
+  quad_index_buffer = gl.createBuffer();
+  if (!quad_index_buffer) {
     console.log('Failed to create the buffer object');
     return -1;
   }
@@ -145,6 +160,10 @@ function main() {
     curr_draw_mode = draw_mode.DrawQuads;
   });
 
+  document.getElementById("DeleteButton").addEventListener("click", function () {
+    delete_selection(gl, a_Position, u_FragColor);
+  });
+
   document.getElementById("ClearScreenButton").addEventListener("click", function () {
     curr_draw_mode = draw_mode.ClearScreen;
     // clear the vertex arrays
@@ -171,22 +190,67 @@ function main() {
   // set event handlers for color sliders
   /* \todo right now these just output to the console, code needs to be modified... */
   document.getElementById("RedRange").addEventListener("input", function () {
-    console.log("RedRange:" + document.getElementById("RedRange").value);
+    //console.log("RedRange:" + document.getElementById("RedRange").value);
+    // Switch based on object type
+    switch (currently_selected_objects[current_object][0]) {
+      case "Line Segment":
+        line_color[0] = document.getElementById("RedRange").value;
+        break;
+      case "Triangle":
+        tri_color[0] = document.getElementById("RedRange").value;
+        break;
+      case "Quad":
+        quad_color[0] = document.getElementById("RedRange").value;
+        break;
+    }
+
+    // Update objects on canvas for color
+    drawObjects(gl, a_Position, u_FragColor);
   });
 
   document.getElementById("GreenRange").addEventListener("input", function () {
-    console.log("GreenRange:" + document.getElementById("GreenRange").value);
+    //console.log("GreenRange:" + document.getElementById("GreenRange").value);
+    // Switch based on object type
+    switch (currently_selected_objects[current_object][0]) {
+      case "Line Segment":
+        line_color[1] = document.getElementById("GreenRange").value;
+        break;
+      case "Triangle":
+        tri_color[1] = document.getElementById("GreenRange").value;
+        break;
+      case "Quad":
+        quad_color[1] = document.getElementById("GreenRange").value;
+        break;
+    }
+
+    // Update objects on canvas for color
+    drawObjects(gl, a_Position, u_FragColor);
   });
 
   document.getElementById("BlueRange").addEventListener("input", function () {
-    console.log("BlueRange:" + document.getElementById("BlueRange").value);
+    //console.log("BlueRange:" + document.getElementById("BlueRange").value);
+    // Switch based on object type
+    switch (currently_selected_objects[current_object][0]) {
+      case "Line Segment":
+        line_color[2] = document.getElementById("BlueRange").value;
+        break;
+      case "Triangle":
+        tri_color[2] = document.getElementById("BlueRange").value;
+        break;
+      case "Quad":
+        quad_color[2] = document.getElementById("BlueRange").value;
+        break;
+    }
+
+    // Update object on canvas for color
+    drawObjects(gl, a_Position, u_FragColor);
   });
 
   // init sliders 
   // \todo this code needs to be modified ...
-  document.getElementById("RedRange").value = 0;
-  document.getElementById("GreenRange").value = 100;
-  document.getElementById("BlueRange").value = 0;
+  document.getElementById("RedRange").value = 0.0;
+  document.getElementById("GreenRange").value = 0.0;
+  document.getElementById("BlueRange").value = 0.0;
 
   // Register function (event handler) to be called on a mouse press
   canvas.addEventListener("mousedown", function (ev) {
@@ -278,10 +342,14 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           // Reset points
           num_pts_quad = 0;
           points.length = 0;
+
+          var num = 4 * (quad_verts.length / 4 - 1);
+          // quad_indices.push(3 + num, 2 + num, 1 + num, 3 + num, 1 + num, 0 + num); // For a different kind of index (test)
+          quad_indices.push(0 + num, 1 + num, 2 + num, 1 + num, 2 + num, 3 + num);
         }
         break;
     }
-  // Else if the right mouse button was clicked, select stuff
+    // Else if the right mouse button was clicked, select stuff
   } else if (ev.button == 2) {
     // Change drawing type to selection mode
     drawing_type = "Select";
@@ -354,41 +422,43 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
             // Save the triangle iterator
             selected_triangle = i;
-            
+
             // Push object to currently selected object
             currently_selected_objects.push(["Triangle", selected_triangle, bary]);
           }
         }
       }
 
-      // Quad
+      // Quad (Missed Commit)
       var selected_quad = -1; // Hold the iterator of the tri in the quad
-      for (var i = 0; i < quad_verts.length; i = i + 1) { // For each tri in the quad
-        if (typeof quad_verts[i] !== 'undefined' && typeof quad_verts[i + 1] !== 'undefined' && typeof quad_verts[i + 2] !== 'undefined') { // If no point in quad_verts are undefined
-          // Hold the first point of the tri in the quad
-          var p0 = {
-            "x": quad_verts[i][0],
-            "y": quad_verts[i][1]
-          };
-          // Hold the second point of the tri in the quad
-          var p1 = {
-            "x": quad_verts[i + 1][0],
-            "y": quad_verts[i + 1][1]
-          };
-          // Hold the third point of the tri in the quad
-          var p2 = {
-            "x": quad_verts[i + 2][0],
-            "y": quad_verts[i + 2][1]
-          };
-          // Find the barycentric coordinates of p from the tri in the quad (from math2D.js)
-          var bary = barycentric(p0, p1, p2, p);
-          // If clicked inside a tri in the quad
-          if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
-            // Save the triangle iterator in the quad
-            selected_quad = i;
+      for (var j = 0; j < quad_verts.length; j = j + 4) {
+        for (var i = 0; i < 2; i = i + 1) { // For each tri in the quad
+          if (typeof quad_verts[j + i] !== 'undefined' && typeof quad_verts[j + i + 1] !== 'undefined' && typeof quad_verts[j + i + 2] !== 'undefined') { // If no point in quad_verts are undefined
+            // Hold the first point of the tri in the quad
+            var p0 = {
+              "x": quad_verts[j + i][0],
+              "y": quad_verts[j + i][1]
+            };
+            // Hold the second point of the tri in the quad
+            var p1 = {
+              "x": quad_verts[j + i + 1][0],
+              "y": quad_verts[j + i + 1][1]
+            };
+            // Hold the third point of the tri in the quad
+            var p2 = {
+              "x": quad_verts[j + i + 2][0],
+              "y": quad_verts[j + i + 2][1]
+            };
+            // Find the barycentric coordinates of p from the tri in the quad (from math2D.js)
+            var bary = barycentric(p0, p1, p2, p);
+            // If clicked inside a tri in the quad
+            if ((bary[0] >= 0) && (bary[1] >= 0) && (bary[0] + bary[1] < 1)) {
+              // Save the triangle iterator in the quad
+              selected_quad = j;
 
-            // Push object to currently selected objects
-            currently_selected_objects.push(["Quad", selected_quad, bary]);
+              // Push object to currently selected objects
+              currently_selected_objects.push(["Quad", selected_quad, bary]);
+            }
           }
         }
       }
@@ -406,7 +476,7 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
         current_object = 0;
       }
     }
-    
+
     // If there are any currently selected objects
     if (currently_selected_objects.length) {
       // Hold the current cycled object
@@ -422,6 +492,11 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           // Push verts to point for display
           points.push(line_verts[obj[1]]);
           points.push(line_verts[obj[1] + 1]);
+
+          // Update range elements
+          document.getElementById("RedRange").value = line_color[0];
+          document.getElementById("GreenRange").value = line_color[1];
+          document.getElementById("BlueRange").value = line_color[2];
           break;
         case "Triangle":
           // Log to console
@@ -432,6 +507,11 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           points.push(tri_verts[obj[1]]);
           points.push(tri_verts[obj[1] + 1]);
           points.push(tri_verts[obj[1] + 2]);
+
+          // Update range elements
+          document.getElementById("RedRange").value = tri_color[0];
+          document.getElementById("GreenRange").value = tri_color[1];
+          document.getElementById("BlueRange").value = tri_color[2];
           break;
         case "Quad":
           // Log to console
@@ -439,13 +519,61 @@ function handleMouseDown(ev, gl, canvas, a_Position, u_FragColor) {
           // Set currently selected type
           currently_selected_type = "Quad";
           // Push verts to points for display
-          points = quad_verts.slice(0);
+          points.push(quad_verts[obj[1]]);
+          points.push(quad_verts[obj[1] + 1]);
+          points.push(quad_verts[obj[1] + 2]);
+          points.push(quad_verts[obj[1] + 3]);
+
+          // Update range elements
+          document.getElementById("RedRange").value = quad_color[0];
+          document.getElementById("GreenRange").value = quad_color[1];
+          document.getElementById("BlueRange").value = quad_color[2];
           break;
       }
     }
   }
 
   drawObjects(gl, a_Position, u_FragColor);
+}
+
+/**
+ * Delete selected object
+ */
+function delete_selection(gl, a_Position, u_FragColor) {
+  if (currently_selected_objects.length) {
+    // Hold the current cycled object
+    var obj = currently_selected_objects[current_object];
+
+    // Switch depending on type of object selected
+    switch (obj[0]) {
+      case "Line Segment":
+        // Splice elements from line verts array
+        line_verts.splice(obj[1], 2);
+        break;
+      case "Triangle":
+        // Splice elements from triangle verts array
+        tri_verts.splice(obj[1], 3);
+        break;
+      case "Quad":
+        // Remove all verts from quad array
+        quad_verts.splice(obj[1], 4);
+
+        // Rebuild indexes
+        quad_indices.length = 0;
+        for (var i = 0; i < quad_verts.length; i = i + 4) {
+          var num = 4 * (i / 4); // Get quad iteration num
+          // quad_indices.push(3 + num, 2 + num, 1 + num, 3 + num, 1 + num, 0 + num); // For a different kind of index (test)
+          // Push indices
+          quad_indices.push(0 + num, 1 + num, 2 + num, 1 + num, 2 + num, 3 + num);
+        }
+        break;
+    }
+
+    // Reset GL_POINTS
+    points.length = 0;
+
+    drawObjects(gl, a_Position, u_FragColor);
+  }
 }
 
 /*
@@ -470,7 +598,7 @@ function drawObjects(gl, a_Position, u_FragColor) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    gl.uniform4fv(u_FragColor, line_color);
     // draw the lines
     gl.drawArrays(gl.LINES, 0, line_verts.length);
   }
@@ -485,7 +613,7 @@ function drawObjects(gl, a_Position, u_FragColor) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    gl.uniform4fv(u_FragColor, tri_color);
     // Draw triangles
     gl.drawArrays(gl.TRIANGLES, 0, tri_verts.length);
   }
@@ -500,9 +628,16 @@ function drawObjects(gl, a_Position, u_FragColor) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    gl.uniform4f(u_FragColor, 0.0, 1.0, 0.0, 1.0);
+    // Bind appropriate array buffer to it
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quad_index_buffer);
+
+    // Pass the vertex data to the buffer
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(quad_indices), gl.STATIC_DRAW);
+
+    gl.uniform4fv(u_FragColor, quad_color);
     // Draw triangles that make up quad
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, quad_verts.length);
+    //gl.drawArrays(gl.TRIANGLES, 0, quad_verts.length);
+    gl.drawElements(gl.TRIANGLES, quad_indices.length, gl.UNSIGNED_SHORT, 0);
   }
 
   // draw primitive creation vertices 
@@ -511,10 +646,11 @@ function drawObjects(gl, a_Position, u_FragColor) {
   gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(a_Position);
 
+  // Change color of GL_POINTS depending on drawing type
   if (drawing_type == "Draw") {
     gl.uniform4f(u_FragColor, 1.0, 1.0, 1.0, 1.0);
   } else if (drawing_type == "Select") {
-    gl.uniform4f(u_FragColor, 0.0, 0.0, 1.0, 1.0);
+    gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
   }
   gl.drawArrays(gl.POINTS, 0, points.length);
 }
